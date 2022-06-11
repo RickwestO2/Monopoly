@@ -1,5 +1,6 @@
 import time
 import tkinter as tk
+from tkinter import messagebox
 from tkinter.ttk import Frame, Style
 import tkinter.font as tkFont
 from random import randint
@@ -63,47 +64,52 @@ def map():
                 framemap[i][j] = tk.Frame(labelframe, bg='white', width=100, height=100)
                 framemap[i][j].grid(row=i,column=j,padx=10,pady=10)
     tk.Button(window, text='Dice',bg='orange',command=dice,font=fontstyle, width=5, height=2).grid(row=3,column=10,padx=10,pady=10)
-    player1=tk.Label(framemap[0][0], text='Player 1',bg='dodgerblue',fg='white',font=fontstyle)
-    player1.place(x=5, y=10)
-    #update_player(player1, 0, 0)
-    player2=tk.Label(framemap[0][0], text='Player 2',bg='limegreen',fg='white',font=fontstyle)
-    player2.place(x=5, y=50)
-    #update_player(player2, 0, 0)
-
-def d_test(player):
-    player.destroy()
+    player1 = update_player(1, player1, 0, 0)
+    player2 = update_player(2, player2, 0, 0)
 
 def dice():
     global player1, player1_loc
     num = randint(1,6)
     # TODO: add message box
     print("dice: ",num)
-    player1, player1_loc = move(player1, player1_loc, num)
+    player1, player1_loc = move(1, player1, player1_loc, num)
 
-def move(player, player_loc, count):
+def move(player_id, player, player_loc, count):
     print("move start")
     for i in range(0, count):
         player_loc+=1
         player_loc%=16
         if(player_loc<=4):
-            player = update_player(player, 0, player_loc)
+            player = update_player(player_id, player, 0, player_loc)
+            if i == count - 1:
+                check_node(0, player_loc)
         elif(player_loc<=8):
-            player = update_player(player, player_loc - 4, 4)
+            player = update_player(player_id, player, player_loc - 4, 4)
+            if i == count - 1:
+                check_node(player_loc - 4, 4)
         elif(player_loc<=12):
-            player = update_player(player, 4, 12 - player_loc)
+            player = update_player(player_id, player, 4, 12 - player_loc)
+            if i == count - 1:
+                check_node(4, 12 - player_loc)
         else:
-            player = update_player(player, 16 - player_loc, 0)
+            player = update_player(player_id, player, 16 - player_loc, 0)
+            if i == count - 1:
+                check_node(16 - player_loc, 0)
         window.update()
         time.sleep(0.5)
     print("move stop")
     return player, player_loc
 
-def update_player(player, i, j):
+def update_player(player_id, player, i, j):
     print(i, j)
-    player.destroy()
-    # TODO: different color when defferent player
-    player = tk.Label(framemap[i][j], text='Player 1',bg='dodgerblue',fg='white',font=fontstyle)
-    player.place(x=5, y=10)
+    if player is not None:
+        player.destroy()
+    if player_id == 1:
+        player = tk.Label(framemap[i][j], text='Player 1',bg='dodgerblue',fg='white',font=fontstyle)
+        player.place(x=5, y=10)
+    elif player_id == 2:
+        player = tk.Label(framemap[i][j], text='Player 2',bg='limegreen',fg='white',font=fontstyle)
+        player.place(x=5, y=50)
     return player
 
 def update_owner(player_id, i, j):
@@ -111,15 +117,16 @@ def update_owner(player_id, i, j):
     # TODO: different color when defferent player
     framemap[i][j].config(bg = 'lightblue')
 
-def test():
-    update_owner(1, 0, 0)
-    update_owner(1, 4, 4)
-    update_owner(2, 0, 1)
+def check_node(i, j):
+    if node_owner[i][j] != 0:
+        print('Already bought')
+    else:
+        if tk.messagebox.askyesno('購買土地', '你要購買這塊地嗎?') == True:
+            update_owner(1, i, j)
 
 round=5
 scoreboard()
 map()
-test()
 """
 for x in range(0,round):
     move()
