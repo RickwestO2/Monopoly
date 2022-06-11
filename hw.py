@@ -12,20 +12,22 @@ fp=5 #finish point
 window = tk.Tk()
 window.geometry('1000x800')
 fontstyle=tkFont.Font(size=20)
-node=[1000,2000,3000]
+node_price=[[None] * 5 for i in range(5)]
 node_owner= [[0]*5 for i in range(5)]
 player1=None
 player2=None
 player1_loc=0
 player2_loc=0
+player_cash=[100000, 100000]
+player_property=[0, 0]
 framemap = [[None] * 5 for i in range(5)]
 btn_dice = None
 
 def scoreboard():
-    cash_output01="cash: "+str(1000)
-    cash_output02="cash: "+str(2000)
-    property_output01="property: "+str(3000)
-    property_output02="property: "+str(4000)
+    cash_output01="cash: "+str(player_cash[0])
+    cash_output02="cash: "+str(player_cash[1])
+    property_output01="property: "+str(player_property[0])
+    property_output02="property: "+str(player_property[1])
 
     board1 = tk.Frame(window, bg='white', width=300, height=150)
     board1.grid(row=1,column=10,padx=10,pady=10)
@@ -60,7 +62,8 @@ def map():
                 if(i==1 and j==3):
                     outtext=tk.Label(frame1, text='翁',bg='lightsalmon',font=tkFont.Font(size=30), width=5, height=2).grid(row=i,column=j)
             else:
-                labelframe = tk.LabelFrame(window, text=node[i%3],font=fontstyle, width=100, height=100)
+                node_price[i][j] = randint(1,100) * 100
+                labelframe = tk.LabelFrame(window, text=node_price[i][j],font=fontstyle, width=100, height=100)
                 labelframe.grid(row=i,column=j,padx=1,pady=1)
                 framemap[i][j] = tk.Frame(labelframe, bg='white', width=100, height=100)
                 framemap[i][j].grid(row=i,column=j,padx=10,pady=10)
@@ -128,12 +131,18 @@ def update_owner(player_id, i, j):
 
 def check_node(player_id, i, j):
     if node_owner[i][j] != 0:
-        print('Already bought')
+        if node_owner[i][j] != player_id:
+            tk.messagebox.showinfo('支付過路費', '你走到了' + str(node_owner[i][j]) + "號玩家的土地，需支付" + str(int(node_price[i][j] / 2)) + "元")
+            player_cash[player_id - 1] -= int(node_price[i][j] / 2)
+            player_cash[node_owner[i][j] - 1] += int(node_price[i][j] / 2)
+
     else:
         if tk.messagebox.askyesno('購買土地', '你要購買這塊地嗎?') == True:
+            player_cash[player_id - 1] -= node_price[i][j]
+            player_property[player_id - 1] += node_price[i][j]
             update_owner(player_id, i, j)
+    scoreboard()
 
-round=5
 scoreboard()
 map()
 
