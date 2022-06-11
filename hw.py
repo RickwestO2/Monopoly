@@ -15,9 +15,9 @@ node=[1000,2000,3000]
 node_owner= [[0]*5 for i in range(5)]
 player1=None
 player2=None
-player_loc01=[0,0]
+player1_loc=0
 player_loc02=[0,0]
-framemap = [[None] * 5] * 5
+framemap = [[None] * 5 for i in range(5)]
 
 def scoreboard():
     cash_output01="cash: "+str(1000)
@@ -64,97 +64,62 @@ def map():
                 framemap[i][j].grid(row=i,column=j,padx=10,pady=10)
     tk.Button(window, text='Dice',bg='orange',command=dice,font=fontstyle, width=5, height=2).grid(row=3,column=10,padx=10,pady=10)
     player1=tk.Label(framemap[0][0], text='Player 1',bg='dodgerblue',fg='white',font=fontstyle)
+    player1.place(x=5, y=10)
+    #update_player(player1, 0, 0)
     player2=tk.Label(framemap[0][0], text='Player 2',bg='limegreen',fg='white',font=fontstyle)
+    player2.place(x=5, y=50)
+    #update_player(player2, 0, 0)
+
+def d_test(player):
+    player.destroy()
 
 def dice():
+    global player1, player1_loc
     num = randint(1,6)
     # TODO: add message box
     print("dice: ",num)
-    move(num)
+    player1, player1_loc = move(player1, player1_loc, num)
 
-def move(num):
+def move(player, player_loc, count):
     print("move start")
-    for i in range(0, num):
-        tmp=(player_loc01[0]+player_loc01[1]+1)%16
-        if(tmp<=4):
-            player_loc01[0]=0
-            player_loc01[1]=tmp
-        elif(tmp<=8):
-            player_loc01[0]=tmp-4
-            player_loc01[1]=4
-        elif(tmp<=12):
-            player_loc01[0]=4
-            player_loc01[1]=12-tmp
+    for i in range(0, count):
+        player_loc+=1
+        player_loc%=16
+        if(player_loc<=4):
+            player = update_player(player, 0, player_loc)
+        elif(player_loc<=8):
+            player = update_player(player, player_loc - 4, 4)
+        elif(player_loc<=12):
+            player = update_player(player, 4, 12 - player_loc)
         else:
-            player_loc01[0]=16-tmp
-            player_loc01[1]=0
-        print("check()", player_loc01)
-        check()
+            player = update_player(player, 16 - player_loc, 0)
         window.update()
         time.sleep(0.5)
     print("move stop")
+    return player, player_loc
 
-    
+def update_player(player, i, j):
+    print(i, j)
+    player.destroy()
+    # TODO: different color when defferent player
+    player = tk.Label(framemap[i][j], text='Player 1',bg='dodgerblue',fg='white',font=fontstyle)
+    player.place(x=5, y=10)
+    return player
 
-#test
-node_owner[0][0]=1
-node_owner[4][4]=1
-node_owner[0][1]=2
+def update_owner(player_id, i, j):
+    node_owner[i][j] = player_id
+    # TODO: different color when defferent player
+    framemap[i][j].config(bg = 'lightblue')
 
-def check():
-    global player1, player2
-    sp=0 #start point
-    fp=5 #finish point
-    for i in range(sp,fp):
-        for j in range(sp,fp):
-            if(node_owner[i][j]==1):#node_owner player1 
-                #labelframe = tk.LabelFrame(window, text=node[i%3],font=fontstyle, width=100, height=100)
-                #labelframe.grid(row=i,column=j,padx=1,pady=1)
-                #frame = tk.Frame(labelframe, bg='lightblue', width=100, height=100)
-                #frame.grid(row=i,column=j,padx=10,pady=10)
-                framemap[i][j].config(bg = 'lightblue')
-            elif(node_owner[i][j]==2):#node_owner player2
-                #labelframe = tk.LabelFrame(window, text=node[i%3],font=fontstyle, width=100, height=100)
-                #labelframe.grid(row=i,column=j,padx=1,pady=1)
-                #frame = tk.Frame(labelframe, bg='lightgreen', width=100, height=100)
-                #frame.grid(row=i,column=j,padx=10,pady=10)
-                framemap[i][j].config(bg = 'lightgreen')
-
-            if(i==player_loc01[0] and j==player_loc01[1]):#player1 location
-                """
-                labelframe = tk.LabelFrame(window, text=node[i%3],font=fontstyle, width=100, height=100)
-                labelframe.grid(row=i,column=j,padx=1,pady=1)
-                if(node_owner[i][j]==1):
-                    frame = tk.Frame(labelframe, bg='lightblue', width=100, height=100)
-                elif(node_owner[i][j]==2):
-                    frame = tk.Frame(labelframe, bg='lightgreen', width=100, height=100)
-                else:
-                    frame = tk.Frame(labelframe, bg='white', width=100, height=100)
-                frame.grid(row=i,column=j,padx=10,pady=10)
-                """
-                player1.destroy()
-                player1 = tk.Label(framemap[i][j], text='Player 1',bg='dodgerblue',fg='white',font=fontstyle)
-                player1.place(x=5, y=10)
-            
-            if(i==player_loc02[0] and j==player_loc02[1]):#player2 location
-                """
-                labelframe = tk.LabelFrame(window, text=node[i%3],font=fontstyle, width=100, height=100)
-                labelframe.grid(row=i,column=j,padx=1,pady=1)
-                if(node_owner[i][j]==2):
-                    frame = tk.Frame(labelframe, bg='lightgreen', width=100, height=100)
-                elif(node_owner[i][j]==1):
-                    frame = tk.Frame(labelframe, bg='lightblue', width=100, height=100)
-                else:
-                    frame = tk.Frame(labelframe, bg='white', width=100, height=100)
-                frame.grid(row=i,column=j,padx=10,pady=10)
-                """
-                player2.destroy()
-                player2 = tk.Label(framemap[i][j], text='Player 2',bg='limegreen',fg='white',font=fontstyle)
-                player2.place(x=5, y=50)
+def test():
+    update_owner(1, 0, 0)
+    update_owner(1, 4, 4)
+    update_owner(2, 0, 1)
 
 round=5
 scoreboard()
 map()
+test()
 """
 for x in range(0,round):
     move()
