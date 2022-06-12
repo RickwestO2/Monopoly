@@ -1,9 +1,10 @@
 import time
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from tkinter.ttk import Frame, Style
 import tkinter.font as tkFont
 from random import randint
+import socket
 
 # Map size
 sp = 0  # start point
@@ -22,6 +23,35 @@ player_cash = [50000, 50000]
 player_property = [0, 0]
 framemap = [[None] * 5 for i in range(5)]
 btn_dice = None
+SOCKET_LIST = []
+server_socket = None
+client_socket = None
+RECV_BUFFER = []
+
+
+def start_server():
+    rand_port = randint(10000, 60000)
+    if tk.messagebox.askokcancel('啟動遊戲伺服器', '即將啟動遊戲伺服器,請於對方的遊戲輸入IP及Port(' + str(rand_port) + '),按下OK以啟動伺服器') == True:
+        tk.messagebox.showinfo('等待對方連線', '伺服器正在等待對方連線,遊戲視窗可能會顯示沒有反應，請稍後...')
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind(('', rand_port))
+        server_socket.listen(10)
+        client_socket, addr = server_socket.accept()
+        SOCKET_LIST.append(client_socket)
+        print("Client (%s, %s) connected" % addr)
+
+
+def start_client():
+    if (host := tk.simpledialog.askstring('連線至伺服器', 'IP位置:')) is not None:
+        if (port := tk.simpledialog.askinteger('連線至伺服器', 'Port:')) is not None:
+            print('connecting to', host, port)
+            try:
+                client_socket = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM)
+                client_socket.connect((host, port))
+            except:
+                print('Unable to connect')
 
 
 def scoreboard():
@@ -88,6 +118,10 @@ def map():
     btn_dice.grid(row=3, column=10, padx=10, pady=10)
     player1 = update_player(1, player1, 0, 0)
     player2 = update_player(2, player2, 0, 0)
+    tk.Button(window, text='start server', bg='orange', command=start_server).grid(
+        row=0, column=10, padx=10, pady=10)
+    tk.Button(window, text='Connect to server', bg='orange', command=start_client).grid(
+        row=4, column=10, padx=10, pady=10)
 
 
 def dice():
