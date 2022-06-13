@@ -5,6 +5,7 @@ from tkinter.ttk import Frame, Style
 import tkinter.font as tkFont
 from random import randint
 import socket
+import pickle
 
 # Map size
 sp = 0  # start point
@@ -22,6 +23,7 @@ player2_loc = 0
 player_cash = [50000, 50000]
 player_property = [0, 0]
 framemap = [[None] * 5 for i in range(5)]
+frameprice = [[None] * 5 for i in range(5)]
 btn_dice = None
 SOCKET_LIST = []
 server_socket = None
@@ -30,6 +32,7 @@ RECV_BUFFER = []
 
 
 def start_server():
+    global client_socket
     rand_port = randint(10000, 60000)
     if tk.messagebox.askokcancel('啟動遊戲伺服器', '即將啟動遊戲伺服器,請於對方的遊戲輸入IP及Port(' + str(rand_port) + '),按下OK以啟動伺服器') == True:
         tk.messagebox.showinfo('等待對方連線', '伺服器正在等待對方連線,遊戲視窗可能會顯示沒有反應，請稍後...')
@@ -40,9 +43,12 @@ def start_server():
         client_socket, addr = server_socket.accept()
         SOCKET_LIST.append(client_socket)
         print("Client (%s, %s) connected" % addr)
+        send_init()
+        tk.messagebox.showinfo('連線成功', '玩家' + addr + '已加入遊戲')
 
 
 def start_client():
+    global client_socket
     if (host := tk.simpledialog.askstring('連線至伺服器', 'IP位置:')) is not None:
         if (port := tk.simpledialog.askinteger('連線至伺服器', 'Port:')) is not None:
             print('connecting to', host, port)
@@ -50,8 +56,25 @@ def start_client():
                 client_socket = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM)
                 client_socket.connect((host, port))
+                receive_init()
+                tk.messagebox.showinfo('連線成功', '已成功連線至遊戲伺服器')
             except:
                 print('Unable to connect')
+
+
+def send_init():
+    # server send node_price to client
+    client_socket.send(pickle.dumps(node_price))
+
+
+def receive_init():
+    global node_price
+    data = client_socket.recv(4096)
+    node_price = pickle.loads(data)
+    for i in range(sp, fp):
+        for j in range(sp, fp):
+            if not (i == fp-1 and j == fp-1) and not (i > sp and i < fp-1 and j > sp and j < fp-1):
+                frameprice[i][j].configure(text='$' + str(node_price[i][j]))
 
 
 def scoreboard():
@@ -80,15 +103,15 @@ def scoreboard():
 
 
 def map():
-    global framemap, player1, player2, btn_dice
+    global framemap, player1, player2, btn_dice, frameprice
     for i in range(sp, fp):
         for j in range(sp, fp):
             if(i == fp-1 and j == fp-1):  # Jail
-                labelframe = tk.LabelFrame(
+                frameprice[i][j] = tk.LabelFrame(
                     window, text='Jail', font=fontstyle, width=100, height=100)
-                labelframe.grid(row=i, column=j, padx=1, pady=1)
+                frameprice[i][j].grid(row=i, column=j, padx=1, pady=1)
                 framemap[i][j] = tk.Frame(
-                    labelframe, bg='white', width=100, height=100)
+                    frameprice[i][j], bg='white', width=100, height=100)
                 framemap[i][j].grid(row=i, column=j, padx=10, pady=10)
 
             elif(i > sp and i < fp-1 and j > sp and j < fp-1):  # middle
@@ -107,11 +130,11 @@ def map():
                         size=30), width=5, height=2).grid(row=i, column=j)
             else:
                 node_price[i][j] = randint(1, 100) * 100
-                labelframe = tk.LabelFrame(
+                frameprice[i][j] = tk.LabelFrame(
                     window, text='$' + str(node_price[i][j]), font=fontstyle, width=100, height=100)
-                labelframe.grid(row=i, column=j, padx=1, pady=1)
+                frameprice[i][j].grid(row=i, column=j, padx=1, pady=1)
                 framemap[i][j] = tk.Frame(
-                    labelframe, bg='white', width=100, height=100)
+                    frameprice[i][j], bg='white', width=100, height=100)
                 framemap[i][j].grid(row=i, column=j, padx=10, pady=10)
     btn_dice = tk.Button(window, text='Dice', bg='orange',
                          command=dice, font=fontstyle, width=5, height=2)
