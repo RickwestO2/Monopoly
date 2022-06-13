@@ -29,10 +29,14 @@ SOCKET_LIST = []
 server_socket = None
 client_socket = None
 RECV_BUFFER = []
+my_playerid = 0
+player_playing = 1
+label_player1_playering = None
+label_player2_playering = None
 
 
 def start_server():
-    global client_socket
+    global client_socket, my_playerid
     rand_port = randint(10000, 60000)
     if tk.messagebox.askokcancel('啟動遊戲伺服器', '即將啟動遊戲伺服器,請於對方的遊戲輸入IP及Port(' + str(rand_port) + '),按下OK以啟動伺服器') == True:
         tk.messagebox.showinfo('等待對方連線', '伺服器正在等待對方連線,遊戲視窗可能會顯示沒有反應，請稍後...')
@@ -44,11 +48,12 @@ def start_server():
         SOCKET_LIST.append(client_socket)
         print("Client (%s, %s) connected" % addr)
         send_init()
-        tk.messagebox.showinfo('連線成功', '玩家' + addr + '已加入遊戲')
+        my_playerid = 1
+        tk.messagebox.showinfo('連線成功', '玩家' + str(addr) + '已加入遊戲')
 
 
 def start_client():
-    global client_socket
+    global client_socket, my_playerid
     if (host := tk.simpledialog.askstring('連線至伺服器', 'IP位置:')) is not None:
         if (port := tk.simpledialog.askinteger('連線至伺服器', 'Port:')) is not None:
             print('connecting to', host, port)
@@ -57,6 +62,7 @@ def start_client():
                     socket.AF_INET, socket.SOCK_STREAM)
                 client_socket.connect((host, port))
                 receive_init()
+                my_playerid = 2
                 tk.messagebox.showinfo('連線成功', '已成功連線至遊戲伺服器')
             except:
                 print('Unable to connect')
@@ -65,6 +71,7 @@ def start_client():
 def send_init():
     # server send node_price to client
     client_socket.send(pickle.dumps(node_price))
+    reset_game()
 
 
 def receive_init():
@@ -75,9 +82,26 @@ def receive_init():
         for j in range(sp, fp):
             if not (i == fp-1 and j == fp-1) and not (i > sp and i < fp-1 and j > sp and j < fp-1):
                 frameprice[i][j].configure(text='$' + str(node_price[i][j]))
+    reset_game()
+
+
+def reset_game():
+    global player1, player2, player1_loc, player2_loc, player_cash, player_property
+    player1_loc = 0
+    player1 = update_player(1, player1, 0, 0)
+    player2_loc = 0
+    player2 = update_player(2, player2, 0, 0)
+    player_cash = [50000, 50000]
+    player_property = [0, 0]
+    scoreboard()
+    for i in range(sp, fp):
+        for j in range(sp, fp):
+            if not (i == fp-1 and j == fp-1) and not (i > sp and i < fp-1 and j > sp and j < fp-1):
+                update_owner(0, i, j)
 
 
 def scoreboard():
+    global label_player1_playering, label_player2_playering
     cash_output01 = "cash: "+str(player_cash[0])
     cash_output02 = "cash: "+str(player_cash[1])
     property_output01 = "property: "+str(player_property[0])
@@ -87,6 +111,9 @@ def scoreboard():
     board1.grid(row=1, column=10, padx=10, pady=10)
     player01 = tk.Label(board1, text='Player 1', bg='dodgerblue',
                         fg='white', font=fontstyle).place(x=5, y=5)
+    label_player1_playering = tk.Label(board1, text='(Playing)', bg='white',
+                                       fg='red', font=fontstyle)
+    label_player1_playering.place(x=100, y=5)
     cash01 = tk.Label(board1, text=cash_output01, bg='white',
                       font=fontstyle).place(x=5, y=50)
     property01 = tk.Label(board1, text=property_output01,
@@ -96,6 +123,8 @@ def scoreboard():
     board2.grid(row=2, column=10, padx=10, pady=10)
     player02 = tk.Label(board2, text='Player 2', bg='limegreen',
                         fg='white', font=fontstyle).place(x=5, y=5)
+    label_player2_playering = tk.Label(board2, text='(Playing)', bg='white',
+                                       fg='red', font=fontstyle)
     cash02 = tk.Label(board2, text=cash_output02, bg='white',
                       font=fontstyle).place(x=5, y=50)
     property02 = tk.Label(board2, text=property_output02,
@@ -147,22 +176,38 @@ def map():
         row=4, column=10, padx=10, pady=10)
 
 
+def player_poll():
+    global player_playing
+    if player_playing == 1:
+        player_playing = 2
+        label_player1_playering.place_forget()
+        label_player2_playering.place(x=100, y=5)
+    else:
+        player_playing = 1
+        label_player1_playering.place(x=100, y=5)
+        label_player2_playering.place_forget()
+    if my_playerid == 0 or my_playerid == player_playing:
+        btn_dice['state'] = 'normal'
+    else:
+        btn_dice['state'] = 'disabled'
+
+
 def dice():
     global player1, player1_loc, player2, player2_loc, btn_dice
     btn_dice['state'] = 'disabled'
     num = randint(1, 6)
-    # TODO: add message box
-    print("dice1: ", num)
-    player1, player1_loc = move(1, player1, player1_loc, num)
-    num = randint(1, 6)
-    print("dice2: ", num)
-    player2, player2_loc = move(2, player2, player2_loc, num)
-    btn_dice['state'] = 'normal'
+    print("dice: ", num)
+    if player_playing == 1:
+        player1, player1_loc = move(1, player1, player1_loc, num)
+    else:
+        player2, player2_loc = move(2, player2, player2_loc, num)
+    player_poll()
 
 
 def move(player_id, player, player_loc, count):
     print("move start")
     for i in range(0, count):
+        btn_dice.configure(text=str(count - i - 1))
         player_loc += 1
         player_loc %= 16
         if(player_loc <= 4):
@@ -184,6 +229,7 @@ def move(player_id, player, player_loc, count):
         window.update()
         time.sleep(0.5)
     print("move stop")
+    btn_dice.configure(text='Dice')
     return player, player_loc
 
 
@@ -208,6 +254,8 @@ def update_owner(player_id, i, j):
         framemap[i][j].config(bg='lightblue')
     elif player_id == 2:
         framemap[i][j].config(bg='lightgreen')
+    else:
+        framemap[i][j].config(bg='white')
 
 
 def check_node(player_id, i, j):
