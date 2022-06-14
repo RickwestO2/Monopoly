@@ -1,3 +1,5 @@
+import select
+import threading
 import time
 import tkinter as tk
 from tkinter import messagebox, simpledialog
@@ -25,14 +27,20 @@ player_property = [0, 0]
 framemap = [[None] * 5 for i in range(5)]
 frameprice = [[None] * 5 for i in range(5)]
 btn_dice = None
-SOCKET_LIST = []
 server_socket = None
 client_socket = None
-RECV_BUFFER = []
 my_playerid = 0
 player_playing = 1
 label_player1_playering = None
 label_player2_playering = None
+label_player1_you = None
+label_player2_you = None
+label_player1_cash = None
+label_player2_cash = None
+label_player1_property = None
+label_player2_property = None
+run_handler = True
+socket_lock = False
 
 
 def start_server():
@@ -45,10 +53,10 @@ def start_server():
         server_socket.bind(('', rand_port))
         server_socket.listen(10)
         client_socket, addr = server_socket.accept()
-        SOCKET_LIST.append(client_socket)
         print("Client (%s, %s) connected" % addr)
         send_init()
         my_playerid = 1
+        label_player1_you.place(x=100, y=5)
         tk.messagebox.showinfo('連線成功', '玩家' + str(addr) + '已加入遊戲')
 
 
@@ -63,6 +71,8 @@ def start_client():
                 client_socket.connect((host, port))
                 receive_init()
                 my_playerid = 2
+                label_player2_you.place(x=100, y=5)
+                btn_dice['state'] = 'disabled'
                 tk.messagebox.showinfo('連線成功', '已成功連線至遊戲伺服器')
             except:
                 print('Unable to connect')
@@ -71,6 +81,8 @@ def start_client():
 def send_init():
     # server send node_price to client
     client_socket.send(pickle.dumps(node_price))
+    if not t.is_alive():
+        t.start()
     reset_game()
 
 
@@ -82,26 +94,82 @@ def receive_init():
         for j in range(sp, fp):
             if not (i == fp-1 and j == fp-1) and not (i > sp and i < fp-1 and j > sp and j < fp-1):
                 frameprice[i][j].configure(text='$' + str(node_price[i][j]))
+    if not t.is_alive():
+        t.start()
     reset_game()
 
 
+def socket_handler():
+    global socket_lock, player1, player2, player_cash, player_property
+    while run_handler:
+        ready_to_read,ready_to_write,in_error = select.select([client_socket],[],[],0)
+        if len(ready_to_read) == 1:
+            #try:
+                data = client_socket.recv(4096)
+                if data:
+                    data = data.decode().split()
+                    if data[0] == "ACK":
+                        print("socket_lock unlocked")
+                        socket_lock = False
+                    else:
+                        if data[0] == "update_player":
+                            print("[socket_handler] Command: update_player")
+                            if int(data[1]) == 1:
+                                player1 = update_player(1, player1, int(data[2]), int(data[3]), False)
+                            else:
+                                player2 = update_player(2, player2, int(data[2]), int(data[3]), False)
+                        elif data[0] == "update_owner":
+                            print("[socket_handler] Command: update_owner")
+                            update_owner(int(data[1]), int(data[2]), int(data[3]), False)
+                        elif data[0] == "player_poll":
+                            print("[socket_handler] Command: player_poll")
+                            player_poll(False)
+                        elif data[0] == "update_scoreboard":
+                            print("[socket_handler] Command: update_scoreboard")
+                            player_cash = [int(data[1]), int(data[2])]
+                            player_property = [int(data[3]), int(data[4])]
+                            update_scoreboard(False)
+                        else:
+                            print("[socket_handler] Received unknown command:", data)
+                        client_socket.send('ACK'.encode())
+                else:
+                    print('[socket_handler] server disconnect!')
+                    break
+            #except:
+                #print('[socket_handler] exception!')
+                #break
+
+
+t = threading.Thread(target = socket_handler)
+
+
+def send_peer(data):
+    global socket_lock
+    while socket_lock == True:
+        continue
+    if client_socket is not None:
+        socket_lock = True
+        client_socket.send(data.encode())
+
+
 def reset_game():
-    global player1, player2, player1_loc, player2_loc, player_cash, player_property
+    global player1, player2, player1_loc, player2_loc, player_cash, player_property, player_playing
     player1_loc = 0
-    player1 = update_player(1, player1, 0, 0)
+    player1 = update_player(1, player1, 0, 0, False)
     player2_loc = 0
-    player2 = update_player(2, player2, 0, 0)
+    player2 = update_player(2, player2, 0, 0, False)
     player_cash = [50000, 50000]
     player_property = [0, 0]
-    scoreboard()
+    update_scoreboard()
+    player_playing = 1
     for i in range(sp, fp):
         for j in range(sp, fp):
             if not (i == fp-1 and j == fp-1) and not (i > sp and i < fp-1 and j > sp and j < fp-1):
-                update_owner(0, i, j)
+                update_owner(0, i, j, False)
 
 
-def scoreboard():
-    global label_player1_playering, label_player2_playering
+def build_scoreboard():
+    global label_player1_playering, label_player2_playering, label_player1_you, label_player2_you, label_player1_cash, label_player2_cash, label_player1_property, label_player2_property
     cash_output01 = "cash: "+str(player_cash[0])
     cash_output02 = "cash: "+str(player_cash[1])
     property_output01 = "property: "+str(player_property[0])
@@ -111,24 +179,41 @@ def scoreboard():
     board1.grid(row=1, column=10, padx=10, pady=10)
     player01 = tk.Label(board1, text='Player 1', bg='dodgerblue',
                         fg='white', font=fontstyle).place(x=5, y=5)
-    label_player1_playering = tk.Label(board1, text='(Playing)', bg='white',
+    label_player1_playering = tk.Label(board1, text='Playing', bg='red',
+                                       fg='white', font=fontstyle)
+    label_player1_playering.place(x=200, y=5)
+    label_player1_you = tk.Label(board1, text='You', bg='white',
                                        fg='red', font=fontstyle)
-    label_player1_playering.place(x=100, y=5)
-    cash01 = tk.Label(board1, text=cash_output01, bg='white',
-                      font=fontstyle).place(x=5, y=50)
-    property01 = tk.Label(board1, text=property_output01,
-                          bg='white', font=fontstyle).place(x=5, y=100)
+    label_player1_cash = tk.Label(board1, text=cash_output01, bg='white',
+                      font=fontstyle)
+    label_player1_cash.place(x=5, y=50)
+    label_player1_property = tk.Label(board1, text=property_output01,
+                          bg='white', font=fontstyle)
+    label_player1_property.place(x=5, y=100)
 
     board2 = tk.Frame(window, bg='white', width=300, height=150)
     board2.grid(row=2, column=10, padx=10, pady=10)
     player02 = tk.Label(board2, text='Player 2', bg='limegreen',
                         fg='white', font=fontstyle).place(x=5, y=5)
-    label_player2_playering = tk.Label(board2, text='(Playing)', bg='white',
+    label_player2_playering = tk.Label(board2, text='Playing', bg='red',
+                                       fg='white', font=fontstyle)
+    label_player2_you = tk.Label(board2, text='You', bg='white',
                                        fg='red', font=fontstyle)
-    cash02 = tk.Label(board2, text=cash_output02, bg='white',
-                      font=fontstyle).place(x=5, y=50)
-    property02 = tk.Label(board2, text=property_output02,
-                          bg='white', font=fontstyle).place(x=5, y=100)
+    label_player2_cash = tk.Label(board2, text=cash_output02, bg='white',
+                      font=fontstyle)
+    label_player2_cash.place(x=5, y=50)
+    label_player2_property = tk.Label(board2, text=property_output02,
+                          bg='white', font=fontstyle)
+    label_player2_property.place(x=5, y=100)
+
+
+def update_scoreboard(b_send_peer = True):
+    if b_send_peer == True:
+        send_peer("update_scoreboard " + str(player_cash[0]) + " " + str(player_cash[1]) + " " + str(player_property[0]) + " " + str(player_property[1]))
+    label_player1_cash.configure(text = "cash: " + str(player_cash[0]))
+    label_player2_cash.configure(text = "cash: " + str(player_cash[1]))
+    label_player1_property.configure(text = "property: "+str(player_property[0]))
+    label_player2_property.configure(text = "property: "+str(player_property[0]))
 
 
 def map():
@@ -176,15 +261,17 @@ def map():
         row=4, column=10, padx=10, pady=10)
 
 
-def player_poll():
+def player_poll(b_send_peer = True):
+    if b_send_peer == True:
+        send_peer("player_poll")
     global player_playing
     if player_playing == 1:
         player_playing = 2
         label_player1_playering.place_forget()
-        label_player2_playering.place(x=100, y=5)
+        label_player2_playering.place(x=200, y=5)
     else:
         player_playing = 1
-        label_player1_playering.place(x=100, y=5)
+        label_player1_playering.place(x=200, y=5)
         label_player2_playering.place_forget()
     if my_playerid == 0 or my_playerid == player_playing:
         btn_dice['state'] = 'normal'
@@ -233,8 +320,10 @@ def move(player_id, player, player_loc, count):
     return player, player_loc
 
 
-def update_player(player_id, player, i, j):
+def update_player(player_id, player, i, j, b_send_peer = True):
     print(i, j)
+    if b_send_peer == True:
+        send_peer("update_player " + str(player_id) + " " + str(i) + " " + str(j))
     if player is not None:
         player.destroy()
     if player_id == 1:
@@ -248,7 +337,9 @@ def update_player(player_id, player, i, j):
     return player
 
 
-def update_owner(player_id, i, j):
+def update_owner(player_id, i, j, b_send_peer = True):
+    if b_send_peer == True:
+        send_peer("update_owner " + str(player_id) + " " + str(i) + " " + str(j))
     node_owner[i][j] = player_id
     if player_id == 1:
         framemap[i][j].config(bg='lightblue')
@@ -272,10 +363,11 @@ def check_node(player_id, i, j):
                 player_cash[player_id - 1] -= node_price[i][j]
                 player_property[player_id - 1] += node_price[i][j]
                 update_owner(player_id, i, j)
-        scoreboard()
+        update_scoreboard()
 
 
-scoreboard()
+build_scoreboard()
 map()
 
 window.mainloop()
+run_handler = False
