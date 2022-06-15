@@ -1,13 +1,13 @@
+import pickle
 import select
+import socket
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, simpledialog
-from tkinter.ttk import Frame, Style
 import tkinter.font as tkFont
 from random import randint
-import socket
-import pickle
+from tkinter import messagebox, simpledialog
+from tkinter.ttk import Frame, Style
 
 # Map size
 sp = 0  # start point
@@ -121,45 +121,45 @@ def receive_init():
 def socket_handler():
     global socket_lock, player1, player2, player_cash, player_property
     while run_handler:
-        ready_to_read,ready_to_write,in_error = select.select([client_socket],[],[],0)
+        ready_to_read, ready_to_write, in_error = select.select(
+            [client_socket], [], [], 0)
         if len(ready_to_read) == 1:
-            #try:
-                data = client_socket.recv(4096)
-                if data:
-                    data = data.decode().split()
-                    if data[0] == "ACK":
-                        print("[socket_handler] socket_lock unlocked")
-                        socket_lock = False
-                    else:
-                        if data[0] == "update_player":
-                            print("[socket_handler] Command: update_player")
-                            if int(data[1]) == 1:
-                                player1 = update_player(1, player1, int(data[2]), int(data[3]), False)
-                            else:
-                                player2 = update_player(2, player2, int(data[2]), int(data[3]), False)
-                        elif data[0] == "update_owner":
-                            print("[socket_handler] Command: update_owner")
-                            update_owner(int(data[1]), int(data[2]), int(data[3]), False)
-                        elif data[0] == "player_poll":
-                            print("[socket_handler] Command: player_poll")
-                            player_poll(False)
-                        elif data[0] == "update_scoreboard":
-                            print("[socket_handler] Command: update_scoreboard")
-                            player_cash = [int(data[1]), int(data[2])]
-                            player_property = [int(data[3]), int(data[4])]
-                            update_scoreboard(False)
-                        else:
-                            print("[socket_handler] Received unknown command:", data)
-                        client_socket.send('ACK'.encode())
+            data = client_socket.recv(4096)
+            if data:
+                data = data.decode().split()
+                if data[0] == "ACK":
+                    print("[socket_handler] socket_lock unlocked")
+                    socket_lock = False
                 else:
-                    print('[socket_handler] server disconnect!')
-                    break
-            #except:
-                #print('[socket_handler] exception!')
-                #break
+                    if data[0] == "update_player":
+                        print("[socket_handler] Command: update_player")
+                        if int(data[1]) == 1:
+                            player1 = update_player(
+                                1, player1, int(data[2]), int(data[3]), False)
+                        else:
+                            player2 = update_player(
+                                2, player2, int(data[2]), int(data[3]), False)
+                    elif data[0] == "update_owner":
+                        print("[socket_handler] Command: update_owner")
+                        update_owner(int(data[1]), int(
+                            data[2]), int(data[3]), False)
+                    elif data[0] == "player_poll":
+                        print("[socket_handler] Command: player_poll")
+                        player_poll(False)
+                    elif data[0] == "update_scoreboard":
+                        print("[socket_handler] Command: update_scoreboard")
+                        player_cash = [int(data[1]), int(data[2])]
+                        player_property = [int(data[3]), int(data[4])]
+                        update_scoreboard(False)
+                    else:
+                        print("[socket_handler] Received unknown command:", data)
+                    client_socket.send('ACK'.encode())
+            else:
+                print('[socket_handler] server disconnect!')
+                break
 
 
-t = threading.Thread(target = socket_handler)
+t = threading.Thread(target=socket_handler)
 
 
 def send_peer(data):
@@ -202,12 +202,12 @@ def build_scoreboard():
                                        fg='white', font=fontstyle)
     label_player1_playering.place(x=200, y=5)
     label_player1_you = tk.Label(board1, text='You', bg='white',
-                                       fg='red', font=fontstyle)
+                                 fg='red', font=fontstyle)
     label_player1_cash = tk.Label(board1, text=cash_output01, bg='white',
-                      font=fontstyle)
+                                  font=fontstyle)
     label_player1_cash.place(x=5, y=50)
     label_player1_property = tk.Label(board1, text=property_output01,
-                          bg='white', font=fontstyle)
+                                      bg='white', font=fontstyle)
     label_player1_property.place(x=5, y=100)
 
     board2 = tk.Frame(window, bg='white', width=300, height=150)
@@ -217,23 +217,24 @@ def build_scoreboard():
     label_player2_playering = tk.Label(board2, text='Playing', bg='red',
                                        fg='white', font=fontstyle)
     label_player2_you = tk.Label(board2, text='You', bg='white',
-                                       fg='red', font=fontstyle)
+                                 fg='red', font=fontstyle)
     label_player2_cash = tk.Label(board2, text=cash_output02, bg='white',
-                      font=fontstyle)
+                                  font=fontstyle)
     label_player2_cash.place(x=5, y=50)
     label_player2_property = tk.Label(board2, text=property_output02,
-                          bg='white', font=fontstyle)
+                                      bg='white', font=fontstyle)
     label_player2_property.place(x=5, y=100)
 
 
-def update_scoreboard(b_send_peer = True):
+def update_scoreboard(b_send_peer=True):
     print("[update_scoreboard]", b_send_peer)
     if b_send_peer == True:
-        send_peer("update_scoreboard " + str(player_cash[0]) + " " + str(player_cash[1]) + " " + str(player_property[0]) + " " + str(player_property[1]))
-    label_player1_cash.configure(text = "cash: " + str(player_cash[0]))
-    label_player2_cash.configure(text = "cash: " + str(player_cash[1]))
-    label_player1_property.configure(text = "property: "+str(player_property[0]))
-    label_player2_property.configure(text = "property: "+str(player_property[1]))
+        send_peer("update_scoreboard " + str(player_cash[0]) + " " + str(
+            player_cash[1]) + " " + str(player_property[0]) + " " + str(player_property[1]))
+    label_player1_cash.configure(text="cash: " + str(player_cash[0]))
+    label_player2_cash.configure(text="cash: " + str(player_cash[1]))
+    label_player1_property.configure(text="property: "+str(player_property[0]))
+    label_player2_property.configure(text="property: "+str(player_property[1]))
 
 
 def map():
@@ -281,7 +282,7 @@ def map():
         row=4, column=10, padx=10, pady=10)
 
 
-def player_poll(b_send_peer = True):
+def player_poll(b_send_peer=True):
     print("[player_poll]", b_send_peer)
     if b_send_peer == True:
         send_peer("player_poll")
@@ -339,10 +340,11 @@ def move(player_id, player, player_loc, count):
     return player, player_loc
 
 
-def update_player(player_id, player, i, j, b_send_peer = True):
+def update_player(player_id, player, i, j, b_send_peer=True):
     print("[update_player]", player_id, i, j, b_send_peer)
     if b_send_peer == True:
-        send_peer("update_player " + str(player_id) + " " + str(i) + " " + str(j))
+        send_peer("update_player " + str(player_id) +
+                  " " + str(i) + " " + str(j))
     if player is not None:
         player.destroy()
     if player_id == 1:
@@ -356,10 +358,11 @@ def update_player(player_id, player, i, j, b_send_peer = True):
     return player
 
 
-def update_owner(player_id, i, j, b_send_peer = True):
+def update_owner(player_id, i, j, b_send_peer=True):
     print("[update_owner]", player_id, i, j, b_send_peer)
     if b_send_peer == True:
-        send_peer("update_owner " + str(player_id) + " " + str(i) + " " + str(j))
+        send_peer("update_owner " + str(player_id) +
+                  " " + str(i) + " " + str(j))
     node_owner[i][j] = player_id
     if player_id == 1:
         framemap[i][j].config(bg='lightblue')
