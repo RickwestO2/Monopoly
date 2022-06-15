@@ -13,7 +13,9 @@ from tkinter.ttk import Frame, Style
 sp = 0  # start point
 fp = 5  # finish point
 
+version_id = "2.0-rc1"
 window = tk.Tk()
+window.title("大富翁    版本:" + version_id + "  模式:單機模式")
 window.geometry('1000x800')
 fontstyle = tkFont.Font(size=20)
 node_price = [[None] * 5 for i in range(5)]
@@ -68,6 +70,8 @@ def start_server():
         label_player1_you.place(x=100, y=5)
         print("[start_server] tk.messagebox.showinfo")
         tk.messagebox.showinfo('連線成功', '玩家' + str(addr) + '已加入遊戲')
+        print("[start_server] set window.title")
+        window.title("大富翁    版本:" + version_id + "  模式:連線模式  角色:伺服端  Port:" + str(rand_port))
         print("[start_server] Finished.")
 
 
@@ -92,6 +96,8 @@ def start_client():
                 btn_dice['state'] = 'disabled'
                 print("[start_client] tk.messagebox.showinfo")
                 tk.messagebox.showinfo('連線成功', '已成功連線至遊戲伺服器')
+                print("[start_client] set window.title")
+                window.title("大富翁    版本:" + version_id + "  模式:連線模式  角色:客戶端  伺服端位置:" + host + ":" + str(port))
                 print("[start_client] Finished.")
             except:
                 print('Unable to connect')
