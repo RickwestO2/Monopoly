@@ -47,33 +47,52 @@ def start_server():
     global client_socket, my_playerid
     rand_port = randint(10000, 60000)
     if tk.messagebox.askokcancel('啟動遊戲伺服器', '即將啟動遊戲伺服器,請於對方的遊戲輸入IP及Port(' + str(rand_port) + '),按下OK以啟動伺服器') == True:
+        print("[start_server] tk.messagebox.showinfo")
         tk.messagebox.showinfo('等待對方連線', '伺服器正在等待對方連線,遊戲視窗可能會顯示沒有反應，請稍後...')
+        print("[start_server] Creating socket...")
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print("[start_server] setsockopt socket.SOL_SOCKET socket.SO_REUSEADDR 1")
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        print("[start_server] bind", rand_port)
         server_socket.bind(('', rand_port))
+        print("[start_server] listen 10")
         server_socket.listen(10)
+        print("[start_server] Wait for connection...")
         client_socket, addr = server_socket.accept()
-        print("Client (%s, %s) connected" % addr)
+        print("[start_server] Client (%s, %s) connected" % addr)
+        print("[start_server] Call send_init")
         send_init()
+        print("[start_server] Setting up my_playerid")
         my_playerid = 1
+        print("[start_server] Place label_player1_you")
         label_player1_you.place(x=100, y=5)
+        print("[start_server] tk.messagebox.showinfo")
         tk.messagebox.showinfo('連線成功', '玩家' + str(addr) + '已加入遊戲')
+        print("[start_server] Finished.")
 
 
 def start_client():
     global client_socket, my_playerid
     if (host := tk.simpledialog.askstring('連線至伺服器', 'IP位置:')) is not None:
         if (port := tk.simpledialog.askinteger('連線至伺服器', 'Port:')) is not None:
-            print('connecting to', host, port)
+            print("[start_client] Get Host =", host, "Port =", port)
             try:
+                print("[start_client] Creating socket...")
                 client_socket = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM)
+                print("[start_client] Socket connect")
                 client_socket.connect((host, port))
+                print("[start_client] Call receive_init")
                 receive_init()
+                print("[start_client] Setting up my_playerid")
                 my_playerid = 2
+                print("[start_client] Place label_player2_you")
                 label_player2_you.place(x=100, y=5)
+                print("[start_client] Disable Dice button")
                 btn_dice['state'] = 'disabled'
+                print("[start_client] tk.messagebox.showinfo")
                 tk.messagebox.showinfo('連線成功', '已成功連線至遊戲伺服器')
+                print("[start_client] Finished.")
             except:
                 print('Unable to connect')
 
@@ -109,7 +128,7 @@ def socket_handler():
                 if data:
                     data = data.decode().split()
                     if data[0] == "ACK":
-                        print("socket_lock unlocked")
+                        print("[socket_handler] socket_lock unlocked")
                         socket_lock = False
                     else:
                         if data[0] == "update_player":
@@ -208,12 +227,13 @@ def build_scoreboard():
 
 
 def update_scoreboard(b_send_peer = True):
+    print("[update_scoreboard]", b_send_peer)
     if b_send_peer == True:
         send_peer("update_scoreboard " + str(player_cash[0]) + " " + str(player_cash[1]) + " " + str(player_property[0]) + " " + str(player_property[1]))
     label_player1_cash.configure(text = "cash: " + str(player_cash[0]))
     label_player2_cash.configure(text = "cash: " + str(player_cash[1]))
     label_player1_property.configure(text = "property: "+str(player_property[0]))
-    label_player2_property.configure(text = "property: "+str(player_property[0]))
+    label_player2_property.configure(text = "property: "+str(player_property[1]))
 
 
 def map():
@@ -262,6 +282,7 @@ def map():
 
 
 def player_poll(b_send_peer = True):
+    print("[player_poll]", b_send_peer)
     if b_send_peer == True:
         send_peer("player_poll")
     global player_playing
@@ -292,7 +313,6 @@ def dice():
 
 
 def move(player_id, player, player_loc, count):
-    print("move start")
     for i in range(0, count):
         btn_dice.configure(text=str(count - i - 1))
         player_loc += 1
@@ -315,13 +335,12 @@ def move(player_id, player, player_loc, count):
                 check_node(player_id, 16 - player_loc, 0)
         window.update()
         time.sleep(0.5)
-    print("move stop")
     btn_dice.configure(text='Dice')
     return player, player_loc
 
 
 def update_player(player_id, player, i, j, b_send_peer = True):
-    print(i, j)
+    print("[update_player]", player_id, i, j, b_send_peer)
     if b_send_peer == True:
         send_peer("update_player " + str(player_id) + " " + str(i) + " " + str(j))
     if player is not None:
@@ -338,6 +357,7 @@ def update_player(player_id, player, i, j, b_send_peer = True):
 
 
 def update_owner(player_id, i, j, b_send_peer = True):
+    print("[update_owner]", player_id, i, j, b_send_peer)
     if b_send_peer == True:
         send_peer("update_owner " + str(player_id) + " " + str(i) + " " + str(j))
     node_owner[i][j] = player_id
@@ -350,6 +370,7 @@ def update_owner(player_id, i, j, b_send_peer = True):
 
 
 def check_node(player_id, i, j):
+    print("[check_node]", player_id, i, j)
     if not (i == fp - 1 and j == fp - 1):
         if node_owner[i][j] != 0:
             if node_owner[i][j] != player_id:
