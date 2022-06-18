@@ -56,10 +56,10 @@ def start_server():
 
 def start_client():
     global client_socket, my_playerid
-    if (str := tk.simpledialog.askstring('連線至伺服器', '請輸入 IP:PORT')) is not None:
-        str = str.split(":")
-        host = str[0]
-        port = str[1]
+    if (input := tk.simpledialog.askstring('連線至伺服器', '請輸入 IP:PORT')) is not None:
+        input = input.split(":")
+        host = input[0]
+        port = int(input[1])
         print("[start_client] Get Host =", host, "Port =", port)
         try:
             print("[start_client] Creating socket...")
@@ -75,9 +75,9 @@ def start_client():
             label_player2_you.place(x=100, y=5)
             print("[start_client] Disable Dice button")
             btn_dice['state'] = 'disabled'
-            print("[start_client] oChanging label_server_status")
+            print("[start_client] Changing label_server_status")
             label_connection_status.configure(
-                text='已連線至 ' + str(host) + ':' + str(port))
+                text='已連線至 ' + host + ':' + str(port))
             print("[start_client] set window.title")
             window.title("大富翁    版本:" + version_id +
                          "  模式:連線模式  角色:客戶端  伺服端位置:" + host + ":" + str(port))
