@@ -13,7 +13,7 @@ from tkinter.ttk import Frame, Style
 sp = 0  # start point
 fp = 5  # finish point
 
-version_id = "2.0-rc4"
+version_id = "2.0-rc5"
 window = tk.Tk()
 window.title("大富翁    版本:" + version_id + "  模式:單機模式")
 window.geometry('1000x800')
@@ -48,6 +48,9 @@ label_server_port = None
 btn_start_server = None
 btn_start_client = None
 jail_day = [0, 0]
+label_game_round = None
+game_round = 1
+game_over = False
 
 
 def start_server():
@@ -146,6 +149,9 @@ def socket_handler():
                         player_cash = [int(data[1]), int(data[2])]
                         player_property = [int(data[3]), int(data[4])]
                         update_scoreboard(False)
+                    elif data[0] == "game_end":
+                        print("[socket_handler] Command: game_end")
+                        game_end(int(data[1]), False)
                     else:
                         print("[socket_handler] Received unknown command:", data)
             else:
@@ -232,7 +238,7 @@ def reset_game():
 
 
 def build_scoreboard():
-    global label_player1_playering, label_player2_playering, label_player1_you, label_player2_you, label_player1_cash, label_player2_cash, label_player1_property, label_player2_property, label_connection_status, label_server_port, btn_start_server, btn_start_client
+    global label_player1_playering, label_player2_playering, label_player1_you, label_player2_you, label_player1_cash, label_player2_cash, label_player1_property, label_player2_property, label_connection_status, label_server_port, btn_start_server, btn_start_client, label_game_round
     cash_output01 = "cash: "+str(player_cash[0])
     cash_output02 = "cash: "+str(player_cash[1])
     property_output01 = "property: "+str(player_property[0])
@@ -284,6 +290,12 @@ def build_scoreboard():
                                       bg='white', font=fontstyle)
     label_player2_property.place(x=5, y=100)
 
+    board3 = tk.Frame(window, bg='white', width=300, height=50)
+    board3.grid(row=3, column=10, padx=10, pady=10)
+    label_game_round = tk.Label(
+        board3, text='目前回合: ' + str(game_round) + ' / 15', bg='white', fg='black', font=fontstyle)
+    label_game_round.place(x=5, y=5)
+
 
 def update_scoreboard(b_send_peer=True):
     print("[update_scoreboard]", b_send_peer)
@@ -294,6 +306,12 @@ def update_scoreboard(b_send_peer=True):
     label_player2_cash.configure(text="cash: " + str(player_cash[1]))
     label_player1_property.configure(text="property: "+str(player_property[0]))
     label_player2_property.configure(text="property: "+str(player_property[1]))
+
+
+def update_game_round():
+    global game_round
+    game_round += 1
+    label_game_round.configure(text='目前回合: ' + str(game_round) + ' / 15')
 
 
 def map():
@@ -332,7 +350,7 @@ def map():
                 framemap[i][j].grid(row=i, column=j, padx=10, pady=10)
     btn_dice = tk.Button(window, text='Dice', bg='orange',
                          command=dice, font=fontstyle, width=5, height=2)
-    btn_dice.grid(row=3, column=10, padx=10, pady=10)
+    btn_dice.grid(row=4, column=10, padx=10, pady=10)
     player1 = update_player(1, player1, 0, 0)
     player2 = update_player(2, player2, 0, 0)
 
@@ -351,6 +369,7 @@ def player_poll(b_send_peer=True):
         player_playing = 1
         label_player1_playering.place(x=200, y=5)
         label_player2_playering.place_forget()
+        update_game_round()
     if my_playerid == 0 or my_playerid == player_playing:
         if jail_day[player_playing - 1] > 0:
             tk.messagebox.showinfo(
@@ -372,7 +391,8 @@ def dice():
         player1, player1_loc = move(1, player1, player1_loc, num)
     else:
         player2, player2_loc = move(2, player2, player2_loc, num)
-    player_poll()
+    if game_over == False:
+        player_poll()
 
 
 def move(player_id, player, player_loc, count):
@@ -458,6 +478,36 @@ def check_node(player_id, i, j):
             else:
                 tk.messagebox.showwarning('餘額不足', '因您的存款不足，將無法於此處購買土地')
         update_scoreboard()
+        check_game(player_id)
+
+
+def check_game(player_id):
+    if player_cash[player_id - 1] < 0:
+        if player_id == 1:
+            game_end(2)
+        else:
+            game_end(1)
+    elif game_round == 15 and player_id == 2:
+        if player_cash[0] + player_property[0] > player_cash[1] + player_property[1]:
+            game_end(1)
+        elif player_cash[0] + player_property[0] < player_cash[1] + player_property[1]:
+            game_end(2)
+        else:
+            game_end(0)
+
+
+def game_end(winner_id, b_send_peer=True):
+    global game_over
+    game_over = True
+    print("[game_end]", winner_id, b_send_peer)
+    if b_send_peer == True:
+        send_peer("game_end " + str(winner_id))
+    if winner_id == 0:
+        tk.messagebox.showinfo('遊戲結束', '遊戲結束！雙方平手')
+    elif winner_id == my_playerid:
+        tk.messagebox.showinfo('遊戲結束', '遊戲結束！您獲勝了')
+    else:
+        tk.messagebox.showinfo('遊戲結束', '遊戲結束！您輸了')
 
 
 build_scoreboard()
