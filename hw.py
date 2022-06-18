@@ -13,7 +13,7 @@ from tkinter.ttk import Frame, Style
 sp = 0  # start point
 fp = 5  # finish point
 
-version_id = "2.0-rc2"
+version_id = "2.0-rc3"
 window = tk.Tk()
 window.title("大富翁    版本:" + version_id + "  模式:單機模式")
 window.geometry('1000x800')
@@ -47,6 +47,7 @@ label_connection_status = None
 label_server_port = None
 btn_start_server = None
 btn_start_client = None
+jail_day = [0, 0]
 
 
 def start_server():
@@ -337,6 +338,7 @@ def map():
 
 
 def player_poll(b_send_peer=True):
+    global jail_day
     print("[player_poll]", b_send_peer)
     if b_send_peer == True:
         send_peer("player_poll")
@@ -350,7 +352,13 @@ def player_poll(b_send_peer=True):
         label_player1_playering.place(x=200, y=5)
         label_player2_playering.place_forget()
     if my_playerid == 0 or my_playerid == player_playing:
-        btn_dice['state'] = 'normal'
+        if jail_day[player_playing - 1] > 0:
+            tk.messagebox.showinfo(
+                '監獄', '坐牢中，還有' + str(jail_day[player_playing - 1]) + '天！')
+            jail_day[player_playing - 1] -= 1
+            player_poll()
+        else:
+            btn_dice['state'] = 'normal'
     else:
         btn_dice['state'] = 'disabled'
 
@@ -427,8 +435,13 @@ def update_owner(player_id, i, j, b_send_peer=True):
 
 
 def check_node(player_id, i, j):
+    global jail_day
     print("[check_node]", player_id, i, j)
-    if not (i == fp - 1 and j == fp - 1):
+    if i == fp - 1 and j == fp - 1:  # At Jail
+        jail_day[player_id - 1] = 3
+        tk.messagebox.showinfo(
+            '監獄', '你走到了監獄，須坐牢三天！')
+    else:
         if node_owner[i][j] != 0:
             if node_owner[i][j] != player_id:
                 tk.messagebox.showinfo(
