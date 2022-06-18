@@ -13,7 +13,7 @@ from tkinter.ttk import Frame, Style
 sp = 0  # start point
 fp = 5  # finish point
 
-version_id = "2.0-rc3"
+version_id = "2.0-rc4"
 window = tk.Tk()
 window.title("大富翁    版本:" + version_id + "  模式:單機模式")
 window.geometry('1000x800')
@@ -450,10 +450,13 @@ def check_node(player_id, i, j):
                 player_cash[node_owner[i][j] - 1] += int(node_price[i][j] / 2)
 
         else:
-            if tk.messagebox.askyesno('購買土地', '你要購買這塊地嗎?') == True:
-                player_cash[player_id - 1] -= node_price[i][j]
-                player_property[player_id - 1] += node_price[i][j]
-                update_owner(player_id, i, j)
+            if player_cash[player_id - 1] >= node_price[i][j]:
+                if tk.messagebox.askyesno('購買土地', '你要購買這塊地嗎?') == True:
+                    player_cash[player_id - 1] -= node_price[i][j]
+                    player_property[player_id - 1] += node_price[i][j]
+                    update_owner(player_id, i, j)
+            else:
+                tk.messagebox.showwarning('餘額不足', '因您的存款不足，將無法於此處購買土地')
         update_scoreboard()
 
 
