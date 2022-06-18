@@ -125,6 +125,7 @@ def socket_handler():
                     print("[socket_handler] socket_lock unlocked")
                     socket_lock = False
                 else:
+                    client_socket.send('ACK'.encode())
                     if data[0] == "update_player":
                         print("[socket_handler] Command: update_player")
                         if int(data[1]) == 1:
@@ -147,7 +148,6 @@ def socket_handler():
                         update_scoreboard(False)
                     else:
                         print("[socket_handler] Received unknown command:", data)
-                    client_socket.send('ACK'.encode())
             else:
                 print('[socket_handler] server disconnect!')
                 break
