@@ -13,7 +13,7 @@ from tkinter.ttk import Frame, Style
 sp = 0  # start point
 fp = 5  # finish point
 
-version_id = "2.0-rc1"
+version_id = "2.0-rc2"
 window = tk.Tk()
 window.title("大富翁    版本:" + version_id + "  模式:單機模式")
 window.geometry('1000x800')
@@ -43,64 +43,51 @@ label_player1_property = None
 label_player2_property = None
 run_handler = True
 socket_lock = False
+label_connection_status = None
+label_server_port = None
+btn_start_server = None
+btn_start_client = None
 
 
 def start_server():
-    global client_socket, my_playerid
-    rand_port = randint(10000, 60000)
-    if tk.messagebox.askokcancel('啟動遊戲伺服器', '即將啟動遊戲伺服器,請於對方的遊戲輸入IP及Port(' + str(rand_port) + '),按下OK以啟動伺服器') == True:
-        print("[start_server] tk.messagebox.showinfo")
-        tk.messagebox.showinfo('等待對方連線', '伺服器正在等待對方連線,遊戲視窗可能會顯示沒有反應，請稍後...')
-        print("[start_server] Creating socket...")
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print("[start_server] setsockopt socket.SOL_SOCKET socket.SO_REUSEADDR 1")
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        print("[start_server] bind", rand_port)
-        server_socket.bind(('', rand_port))
-        print("[start_server] listen 10")
-        server_socket.listen(10)
-        print("[start_server] Wait for connection...")
-        client_socket, addr = server_socket.accept()
-        print("[start_server] Client (%s, %s) connected" % addr)
-        print("[start_server] Call send_init")
-        send_init()
-        print("[start_server] Setting up my_playerid")
-        my_playerid = 1
-        print("[start_server] Place label_player1_you")
-        label_player1_you.place(x=100, y=5)
-        print("[start_server] tk.messagebox.showinfo")
-        tk.messagebox.showinfo('連線成功', '玩家' + str(addr) + '已加入遊戲')
-        print("[start_server] set window.title")
-        window.title("大富翁    版本:" + version_id + "  模式:連線模式  角色:伺服端  Port:" + str(rand_port))
-        print("[start_server] Finished.")
+    if not t2.is_alive():
+        t2.start()
 
 
 def start_client():
     global client_socket, my_playerid
-    if (host := tk.simpledialog.askstring('連線至伺服器', 'IP位置:')) is not None:
-        if (port := tk.simpledialog.askinteger('連線至伺服器', 'Port:')) is not None:
-            print("[start_client] Get Host =", host, "Port =", port)
-            try:
-                print("[start_client] Creating socket...")
-                client_socket = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM)
-                print("[start_client] Socket connect")
-                client_socket.connect((host, port))
-                print("[start_client] Call receive_init")
-                receive_init()
-                print("[start_client] Setting up my_playerid")
-                my_playerid = 2
-                print("[start_client] Place label_player2_you")
-                label_player2_you.place(x=100, y=5)
-                print("[start_client] Disable Dice button")
-                btn_dice['state'] = 'disabled'
-                print("[start_client] tk.messagebox.showinfo")
-                tk.messagebox.showinfo('連線成功', '已成功連線至遊戲伺服器')
-                print("[start_client] set window.title")
-                window.title("大富翁    版本:" + version_id + "  模式:連線模式  角色:客戶端  伺服端位置:" + host + ":" + str(port))
-                print("[start_client] Finished.")
-            except:
-                print('Unable to connect')
+    if (str := tk.simpledialog.askstring('連線至伺服器', '請輸入 IP:PORT')) is not None:
+        str = str.split(":")
+        host = str[0]
+        port = str[1]
+        print("[start_client] Get Host =", host, "Port =", port)
+        try:
+            print("[start_client] Creating socket...")
+            client_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            print("[start_client] Socket connect")
+            client_socket.connect((host, port))
+            print("[start_client] Call receive_init")
+            receive_init()
+            print("[start_client] Setting up my_playerid")
+            my_playerid = 2
+            print("[start_client] Place label_player2_you")
+            label_player2_you.place(x=100, y=5)
+            print("[start_client] Disable Dice button")
+            btn_dice['state'] = 'disabled'
+            print("[start_client] oChanging label_server_status")
+            label_connection_status.configure(
+                text='已連線至 ' + str(host) + ':' + str(port))
+            print("[start_client] set window.title")
+            window.title("大富翁    版本:" + version_id +
+                         "  模式:連線模式  角色:客戶端  伺服端位置:" + host + ":" + str(port))
+            print("[start_client] tk.messagebox.showinfo")
+            tk.messagebox.showinfo('連線成功', '已成功連線至遊戲伺服器')
+            print("[start_client] Finished.")
+        except:
+            print('Unable to connect')
+            print("[start_client] Changing label_connection_status")
+            label_connection_status.configure(text='連線失敗，請再試一次')
 
 
 def send_init():
@@ -168,6 +155,56 @@ def socket_handler():
 t = threading.Thread(target=socket_handler)
 
 
+def server_handler():
+    global client_socket, my_playerid
+    rand_port = randint(10000, 60000)
+    print("[server_handler] Changing label_server_status")
+    label_connection_status.configure(text='已啟動遊戲伺服器，等待連線...')
+    print("[server_handler] Changing label_server_port")
+    label_server_port.configure(text='Port: ' + str(rand_port))
+    print("[server_handler] Disable btn_start_server")
+    btn_start_server['state'] = 'disabled'
+    print("[server_handler] Creating socket...")
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print("[server_handler] setsockopt socket.SOL_SOCKET socket.SO_REUSEADDR 1")
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    print("[server_handler] bind", rand_port)
+    server_socket.bind(('', rand_port))
+    print("[server_handler] listen 10")
+    server_socket.listen(10)
+    print("[server_handler] Wait for connection...")
+    while run_handler:
+        ready_to_read, ready_to_write, in_error = select.select(
+            [server_socket], [], [], 0)
+        if len(ready_to_read) == 1:
+            client_socket, addr = server_socket.accept()
+            break
+    if run_handler == False:
+        print("[server_handler] run_handler is False, exit...")
+        return
+    print("[server_handler] Client (%s, %s) connected" % addr)
+    print("[server_handler] Call send_init")
+    send_init()
+    print("[server_handler] Setting up my_playerid")
+    my_playerid = 1
+    print("[server_handler] Place label_player1_you")
+    label_player1_you.place(x=100, y=5)
+    print("[server_handler] Changing label_server_status")
+    label_connection_status.configure(text='玩家' + str(addr) + '已加入遊戲')
+    print("[server_handler] Changing label_server_port")
+    label_server_port.configure(text='')
+    print("[server_handler] set window.title")
+    window.title("大富翁    版本:" + version_id + "  模式:連線模式  角色:伺服端")
+    print("[server_handler] Enable btn_start_server")
+    btn_start_server['state'] = 'normal'
+    print("[server_handler] tk.messagebox.showinfo")
+    tk.messagebox.showinfo('連線成功', '玩家' + str(addr) + '已加入遊戲')
+    print("[server_handler] Finished.")
+
+
+t2 = threading.Thread(target=server_handler)
+
+
 def send_peer(data):
     global socket_lock
     while socket_lock == True:
@@ -194,11 +231,26 @@ def reset_game():
 
 
 def build_scoreboard():
-    global label_player1_playering, label_player2_playering, label_player1_you, label_player2_you, label_player1_cash, label_player2_cash, label_player1_property, label_player2_property
+    global label_player1_playering, label_player2_playering, label_player1_you, label_player2_you, label_player1_cash, label_player2_cash, label_player1_property, label_player2_property, label_connection_status, label_server_port, btn_start_server, btn_start_client
     cash_output01 = "cash: "+str(player_cash[0])
     cash_output02 = "cash: "+str(player_cash[1])
     property_output01 = "property: "+str(player_property[0])
     property_output02 = "property: "+str(player_property[1])
+
+    board0 = tk.Frame(window, bg='white', width=300, height=150)
+    board0.grid(row=0, column=10, padx=10, pady=10)
+    label_connection_status = tk.Label(
+        board0, text='連線狀態：未連線', bg='white', fg='black', font=tkFont.Font(size=14))
+    label_connection_status.place(x=5, y=5)
+    label_server_port = tk.Label(
+        board0, text='', bg='white', fg='black', font=tkFont.Font(size=14))
+    label_server_port.place(x=5, y=50)
+    btn_start_server = tk.Button(
+        board0, text='啟動遊戲伺服器', bg='orange', command=start_server)
+    btn_start_server.place(x=5, y=112)
+    btn_start_client = tk.Button(
+        board0, text='連線至遊戲伺服器', bg='orange', command=start_client)
+    btn_start_client.place(x=187, y=112)
 
     board1 = tk.Frame(window, bg='white', width=300, height=150)
     board1.grid(row=1, column=10, padx=10, pady=10)
@@ -282,10 +334,6 @@ def map():
     btn_dice.grid(row=3, column=10, padx=10, pady=10)
     player1 = update_player(1, player1, 0, 0)
     player2 = update_player(2, player2, 0, 0)
-    tk.Button(window, text='start server', bg='orange', command=start_server).grid(
-        row=0, column=10, padx=10, pady=10)
-    tk.Button(window, text='Connect to server', bg='orange', command=start_client).grid(
-        row=4, column=10, padx=10, pady=10)
 
 
 def player_poll(b_send_peer=True):
