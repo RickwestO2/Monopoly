@@ -13,7 +13,7 @@ from tkinter.ttk import Frame, Style
 sp = 0  # start point
 fp = 5  # finish point
 
-version_id = "2.0-rc5"
+version_id = "2.0-rc6"
 window = tk.Tk()
 window.title("大富翁    版本:" + version_id + "  模式:單機模式")
 window.geometry('1000x800')
@@ -502,12 +502,20 @@ def game_end(winner_id, b_send_peer=True):
     print("[game_end]", winner_id, b_send_peer)
     if b_send_peer == True:
         send_peer("game_end " + str(winner_id))
-    if winner_id == 0:
-        tk.messagebox.showinfo('遊戲結束', '遊戲結束！雙方平手')
-    elif winner_id == my_playerid:
-        tk.messagebox.showinfo('遊戲結束', '遊戲結束！您獲勝了')
+    if my_playerid == 0:
+        if winner_id == 0:
+            tk.messagebox.showinfo('遊戲結束', '遊戲結束！雙方平手')
+        elif winner_id == 1:
+            tk.messagebox.showinfo('遊戲結束', '遊戲結束！\nPlayer 1 贏了\nPlayer 2 輸了')
+        else:
+            tk.messagebox.showinfo('遊戲結束', '遊戲結束！\nPlayer 1 輸了\nPlayer 2 贏了')
     else:
-        tk.messagebox.showinfo('遊戲結束', '遊戲結束！您輸了')
+        if winner_id == 0:
+            tk.messagebox.showinfo('遊戲結束', '遊戲結束！雙方平手')
+        elif winner_id == my_playerid:
+            tk.messagebox.showinfo('遊戲結束', '遊戲結束！您獲勝了')
+        else:
+            tk.messagebox.showinfo('遊戲結束', '遊戲結束！您輸了')
 
 
 build_scoreboard()
