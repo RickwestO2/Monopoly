@@ -13,7 +13,7 @@ from tkinter.ttk import Frame, Style
 sp = 0  # start point
 fp = 5  # finish point
 
-version_id = "2.0-rc6"
+version_id = "2.0-rc7"
 window = tk.Tk()
 window.title("大富翁    版本:" + version_id + "  模式:單機模式")
 window.geometry('1000x800')
@@ -51,6 +51,7 @@ jail_day = [0, 0]
 label_game_round = None
 game_round = 1
 game_over = False
+btn_reset = None
 
 
 def start_server():
@@ -71,10 +72,10 @@ def start_client():
                 socket.AF_INET, socket.SOCK_STREAM)
             print("[start_client] Socket connect")
             client_socket.connect((host, port))
-            print("[start_client] Call receive_init")
-            receive_init()
             print("[start_client] Setting up my_playerid")
             my_playerid = 2
+            print("[start_client] Call receive_init")
+            receive_init()
             print("[start_client] Place label_player2_you")
             label_player2_you.place(x=100, y=5)
             print("[start_client] Disable Dice button")
@@ -99,7 +100,7 @@ def send_init():
     client_socket.send(pickle.dumps(node_price))
     if not t.is_alive():
         t.start()
-    reset_game()
+    reset_game(False)
 
 
 def receive_init():
@@ -112,7 +113,7 @@ def receive_init():
                 frameprice[i][j].configure(text='$' + str(node_price[i][j]))
     if not t.is_alive():
         t.start()
-    reset_game()
+    reset_game(False)
 
 
 def socket_handler():
@@ -152,6 +153,9 @@ def socket_handler():
                     elif data[0] == "game_end":
                         print("[socket_handler] Command: game_end")
                         game_end(int(data[1]), False)
+                    elif data[0] == "reset":
+                        print("[socket_handler] Command: reset")
+                        reset_game(False)
                     else:
                         print("[socket_handler] Received unknown command:", data)
             else:
@@ -190,10 +194,10 @@ def server_handler():
         print("[server_handler] run_handler is False, exit...")
         return
     print("[server_handler] Client (%s, %s) connected" % addr)
-    print("[server_handler] Call send_init")
-    send_init()
     print("[server_handler] Setting up my_playerid")
     my_playerid = 1
+    print("[server_handler] Call send_init")
+    send_init()
     print("[server_handler] Place label_player1_you")
     label_player1_you.place(x=100, y=5)
     print("[server_handler] Changing label_server_status")
@@ -221,20 +225,38 @@ def send_peer(data):
         client_socket.send(data.encode())
 
 
-def reset_game():
-    global player1, player2, player1_loc, player2_loc, player_cash, player_property, player_playing
+def reset_game(b_send_peer=True):
+    global player1, player2, player1_loc, player2_loc, player_cash, player_property, player_playing, game_round, game_over, jail_day
+    if b_send_peer == True:
+        send_peer("reset")
     player1_loc = 0
     player1 = update_player(1, player1, 0, 0, False)
     player2_loc = 0
     player2 = update_player(2, player2, 0, 0, False)
     player_cash = [50000, 50000]
     player_property = [0, 0]
-    update_scoreboard()
+    update_scoreboard(False)
     player_playing = 1
+    label_player1_playering.place(x=200, y=5)
+    label_player2_playering.place_forget()
     for i in range(sp, fp):
         for j in range(sp, fp):
             if not (i == fp-1 and j == fp-1) and not (i > sp and i < fp-1 and j > sp and j < fp-1):
                 update_owner(0, i, j, False)
+    btn_reset.grid_forget()
+    btn_dice.grid(row=4, column=10, padx=10, pady=10)
+    game_round = 1
+    label_game_round.configure(text='目前回合: ' + str(game_round) + ' / 15')
+    if my_playerid == 1:
+        label_player1_you.place(x=100, y=5)
+        btn_dice['state'] = 'normal'
+    elif my_playerid == 2:
+        label_player2_you.place(x=100, y=5)
+        btn_dice['state'] = 'disabled'
+    else:  # offline mode
+        btn_dice['state'] = 'normal'
+    game_over = False
+    jail_day = [0, 0]
 
 
 def build_scoreboard():
@@ -315,7 +337,7 @@ def update_game_round():
 
 
 def map():
-    global framemap, player1, player2, btn_dice, frameprice
+    global framemap, player1, player2, btn_dice, frameprice, btn_reset
     for i in range(sp, fp):
         for j in range(sp, fp):
             if(i == fp-1 and j == fp-1):  # Jail
@@ -351,6 +373,8 @@ def map():
     btn_dice = tk.Button(window, text='Dice', bg='orange',
                          command=dice, font=fontstyle, width=5, height=2)
     btn_dice.grid(row=4, column=10, padx=10, pady=10)
+    btn_reset = tk.Button(window, text='Reset', bg='orange',
+                          command=reset_game, font=fontstyle, width=5, height=2)
     player1 = update_player(1, player1, 0, 0)
     player2 = update_player(2, player2, 0, 0)
 
@@ -375,7 +399,9 @@ def player_poll(b_send_peer=True):
             tk.messagebox.showinfo(
                 '監獄', '坐牢中，還有' + str(jail_day[player_playing - 1]) + '天！')
             jail_day[player_playing - 1] -= 1
-            player_poll()
+            check_game(player_playing)
+            if game_over == False:
+                player_poll()
         else:
             btn_dice['state'] = 'normal'
     else:
@@ -478,7 +504,7 @@ def check_node(player_id, i, j):
             else:
                 tk.messagebox.showwarning('餘額不足', '因您的存款不足，將無法於此處購買土地')
         update_scoreboard()
-        check_game(player_id)
+    check_game(player_id)
 
 
 def check_game(player_id):
@@ -516,6 +542,8 @@ def game_end(winner_id, b_send_peer=True):
             tk.messagebox.showinfo('遊戲結束', '遊戲結束！您獲勝了')
         else:
             tk.messagebox.showinfo('遊戲結束', '遊戲結束！您輸了')
+    btn_dice.grid_forget()
+    btn_reset.grid(row=4, column=10, padx=10, pady=10)
 
 
 build_scoreboard()
